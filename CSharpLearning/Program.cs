@@ -12,15 +12,15 @@ namespace CSharpLearning
 		private static string baseUrl = "";
 		private static HashSet<string> checkedLinks = new HashSet<string>();
 
-		public static void CountWordsOnPageRecursive(string url, int depth = 3)
+		public static async Task CountWordsOnPageRecursive(string url, int depth = 3)
 		{
 			string content;
 
-			using (var wc = new System.Net.WebClient())
+			using (var hc = new System.Net.Http.HttpClient())
 			{
 				try
 				{
-					content = wc.DownloadString(url);
+					content = await hc.GetStringAsync(url);
 				}
 				catch (Exception exception)
 				{
@@ -48,17 +48,17 @@ namespace CSharpLearning
 					tasks.Add(Task.Run(() => CountWordsOnPageRecursive(link, depth - 1)));
 				}
 
-				Task.WaitAll(tasks.ToArray());
+				await Task.WhenAll(tasks.ToArray());
 			}
 		}
 
 		static void Main(string[] args)
 		{
 			DateTime begin = DateTime.UtcNow;
-			baseUrl = "http://www.games-academy.de/";
+			baseUrl = "https://www.games-academy.de/";
 			checkedLinks.Add(baseUrl);
 
-			CountWordsOnPageRecursive(baseUrl);
+			CountWordsOnPageRecursive(baseUrl).Wait();
 
 			DateTime end = DateTime.UtcNow;
 			Console.WriteLine("Finished: {0}ms", (end - begin).TotalMilliseconds);
