@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace CSharpLearning
 {
@@ -11,8 +11,6 @@ namespace CSharpLearning
 	{
 		private static string baseUrl = "";
 		private static HashSet<string> checkedLinks = new HashSet<string>();
-		private static int workersActive = 0;
-		private static AutoResetEvent resetEvent = new AutoResetEvent(false);
 
 		public static void CountWordsOnPageRecursive(string url, int depth = 3)
 		{
@@ -35,7 +33,7 @@ namespace CSharpLearning
 
 			if (depth >= 0)
 			{
-				//List<Thread> startedThreads = new List<Thread>();
+				List<Task> tasks = new List<Task>();
 
 				foreach (Match match in Regex.Matches(content, "href=\"/([^\"#\\?:.]*)[\"#\\?]"))
 				{
@@ -43,18 +41,14 @@ namespace CSharpLearning
 
 					lock (checkedLinks)
 					{
-						if (checkedLinks.Contains(link)) continue;
+						if (checkedLinks.Contains(link) || link.Contains("node")) continue;
 						checkedLinks.Add(link);
 					}
 
-					Interlocked.Increment(ref workersActive);
-					ThreadPool.QueueUserWorkItem(state => 
-					{
-						CountWordsOnPageRecursive(link, depth - 1);
-						Interlocked.Decrement(ref workersActive);
-						if (workersActive == 0) resetEvent.Set();
-					});
+					tasks.Add(Task.Run(() => CountWordsOnPageRecursive(link, depth - 1)));
 				}
+
+				Task.WaitAll(tasks.ToArray());
 			}
 		}
 
@@ -65,8 +59,6 @@ namespace CSharpLearning
 			checkedLinks.Add(baseUrl);
 
 			CountWordsOnPageRecursive(baseUrl);
-
-			if(workersActive != 0) resetEvent.WaitOne();
 
 			DateTime end = DateTime.UtcNow;
 			Console.WriteLine("Finished: {0}ms", (end - begin).TotalMilliseconds);
